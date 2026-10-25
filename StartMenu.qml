@@ -53,8 +53,15 @@ Item {
   property var uninstallEntry: null
   property bool powerOpen: false
   property bool lettersOpen: false
+  property bool profileOpen: false
   property bool canSleep: true
+  // Only for the letter on the profile disc when there is no picture.
   property string userName: Quickshell.env("USER") || ""
+  // The usual place for a Linux user's picture, which login screens read too.
+  readonly property string facePath: Quickshell.env("HOME") + "/.face"
+  property bool hasFace: false
+  property int faceStamp: 0
+  readonly property string pluginDir: decodeURIComponent(Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "")).replace(/\/$/, "")
 
   // A pinned app being dragged to another slot, where the pointer is, and the
   // slot it would take.
@@ -204,12 +211,14 @@ Item {
     try { parsed = payloadJson ? JSON.parse(payloadJson) : {} } catch (e) {}
     root.payload = parsed && typeof parsed === "object" ? parsed : {}
     root.now = Date.now()
+    faceProc.running = true
     root.view = "home"
     root.filterText = ""
     root.results = []
     root.menuEntry = null
     root.uninstallEntry = null
     root.powerOpen = false
+    root.profileOpen = false
     root.lettersOpen = false
     root.endDrag()
     if (root.appLibrary) root.appLibrary.refreshIcons()
@@ -232,6 +241,7 @@ Item {
     root.menuEntry = null
     root.uninstallEntry = null
     root.powerOpen = false
+    root.profileOpen = false
     root.lettersOpen = false
     root.endDrag()
   }
@@ -337,6 +347,17 @@ Item {
     Util.execDetached(command)
   }
 
+  // The chooser is a window of its own, so the menu makes way for it.
+  function choosePicture() {
+    root.run("python3 " + Util.shellQuote(root.pluginDir + "/pick-picture.py") + " " + Util.shellQuote(root.facePath)
+      + " " + Util.shellQuote(root.tr("startMenu.choosePicture", "Choose a picture")))
+  }
+
+  function removePicture() {
+    root.profileOpen = false
+    removePictureProc.running = true
+  }
+
   function isPinned(entry) {
     return !!entry && root.pins.indexOf(String(entry.id)) >= 0
   }
@@ -381,6 +402,7 @@ Item {
 
   function openMenu(entry, point) {
     root.powerOpen = false
+    root.profileOpen = false
     root.menuEntry = entry
     root.menuPoint = point
   }
@@ -533,6 +555,24 @@ Item {
     }
   }
 
+  // Into the trash rather than gone, should it be wanted back.
+  Process {
+    id: removePictureProc
+    command: ["gio", "trash", root.facePath]
+    onExited: faceProc.running = true
+  }
+
+  // Asked again each time the menu opens, since the picture may have been
+  // changed while it was closed.
+  Process {
+    id: faceProc
+    command: ["test", "-f", root.facePath]
+    onExited: function(exitCode) {
+      root.hasFace = exitCode === 0
+      root.faceStamp++
+    }
+  }
+
   Component.onCompleted: dockPinsProc.running = true
 
   // ------------------------------------------------------------- Window
@@ -561,9 +601,10 @@ Item {
       anchors.fill: parent
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       onClicked: {
-        if (root.menuEntry || root.powerOpen) {
+        if (root.menuEntry || root.powerOpen || root.profileOpen) {
           root.menuEntry = null
           root.powerOpen = false
+          root.profileOpen = false
         } else {
           root.dismiss()
         }
@@ -588,6 +629,7 @@ Item {
         onClicked: {
           root.menuEntry = null
           root.powerOpen = false
+          root.profileOpen = false
           root.lettersOpen = false
         }
       }
@@ -609,9 +651,10 @@ Item {
           }
           var key = Util.readingKey(event)
           if (event.key === Qt.Key_Escape) {
-            if (root.menuEntry || root.powerOpen || root.lettersOpen) {
+            if (root.menuEntry || root.powerOpen || root.profileOpen || root.lettersOpen) {
               root.menuEntry = null
               root.powerOpen = false
+              root.profileOpen = false
               root.lettersOpen = false
             } else if (root.searching) {
               root.setFilter("")
@@ -620,10 +663,11 @@ Item {
             } else {
               root.dismiss()
             }
-          } else if (root.menuEntry || root.powerOpen) {
+          } else if (root.menuEntry || root.powerOpen || root.profileOpen) {
             // A popup is up: any other key puts it away and goes on.
             root.menuEntry = null
             root.powerOpen = false
+            root.profileOpen = false
             return
           } else if (Util.editsFilter(event, root.filterText)) {
             root.setFilter(Util.editedFilter(event, root.filterText))
@@ -724,6 +768,7 @@ Item {
           onClicked: {
             root.menuEntry = null
             root.powerOpen = false
+            root.profileOpen = false
             keyCatcher.forceActiveFocus()
           }
         }
@@ -1037,38 +1082,19 @@ Item {
           color: Util.alpha(Commons.Color.menu.text, 0.1)
         }
 
-        Row {
+        ProfilePicture {
+          id: profileButton
           anchors.left: parent.left
-          anchors.leftMargin: root.padding
+          anchors.leftMargin: root.padding - Style.spacing.md
           anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.spacing.lg
-
-          Rectangle {
-            width: root.s(32)
-            height: width
-            radius: width / 2
-            color: Util.alpha(Commons.Color.accent, 0.2)
-            border.color: Commons.Color.accent
-            border.width: Style.normalBorderWidth
-
-            Text {
-              anchors.centerIn: parent
-              textFormat: Text.PlainText
-              text: root.userName.charAt(0).toUpperCase()
-              color: Commons.Color.accent
-              font.family: Style.font.menuFamily
-              font.pixelSize: Style.font.title
-              font.weight: Font.DemiBold
-            }
-          }
-
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            textFormat: Text.PlainText
-            text: root.userName
-            color: Commons.Color.menu.text
-            font.family: Style.font.menuFamily
-            font.pixelSize: Style.font.body
+          source: root.hasFace ? root.facePath : ""
+          stamp: root.faceStamp
+          name: root.userName
+          active: root.profileOpen
+          onClicked: {
+            root.menuEntry = null
+            root.powerOpen = false
+            root.profileOpen = !root.profileOpen
           }
         }
 
@@ -1080,12 +1106,14 @@ Item {
           spacing: Style.spacing.xs
 
           IconButton {
+            id: filesButton
             glyph: ""
             label: root.tr("startMenu.files", "Files")
             onClicked: root.run("omarchy-launch-nautilus")
           }
 
           IconButton {
+            id: omarchyMenuButton
             glyph: ""
             label: root.tr("startMenu.settings", "Omarchy menu")
             onClicked: root.run("omarchy-menu toggle root")
@@ -1094,10 +1122,11 @@ Item {
           IconButton {
             id: powerButton
             glyph: ""
-            label: root.powerOpen ? "" : root.tr("startMenu.power", "Power")
+            label: root.tr("startMenu.power", "Power")
             active: root.powerOpen
             onClicked: {
               root.menuEntry = null
+              root.profileOpen = false
               root.powerOpen = !root.powerOpen
             }
           }
@@ -1238,6 +1267,60 @@ Item {
         MenuRow { glyph: ""; text: root.tr("startMenu.restart", "Restart"); onTriggered: root.run("omarchy-system reboot") }
         MenuRow { glyph: ""; text: root.tr("startMenu.shutdown", "Shut down"); onTriggered: root.run("omarchy-system shutdown") }
       }
+    }
+
+    // The profile picture's choices, above it.
+    BorderSurface {
+      id: profileMenu
+
+      visible: root.profileOpen
+      width: Math.max(root.s(170), profileColumn.implicitWidth) + padding * 2
+      height: profileColumn.implicitHeight + padding * 2
+      readonly property point anchorPoint: profileButton.mapToItem(panel.contentItem, 0, 0)
+      x: Math.max(Style.gapsOut, Math.min(panel.width - width - Style.gapsOut, anchorPoint.x))
+      y: Math.max(Style.gapsOut, anchorPoint.y - height - Style.spacing.sm)
+      radius: Style.cornerRadius
+      color: Commons.Color.popups.background
+      borderSpec: Border.surfaceSpec("popups", "border", Commons.Color.popups.border, Style.normalBorderWidth)
+      padding: Style.spacing.sm
+      z: 15
+
+      Column {
+        id: profileColumn
+        x: profileMenu.contentLeftInset
+        y: profileMenu.contentTopInset
+        width: profileMenu.width - profileMenu.contentLeftInset - profileMenu.contentRightInset
+
+        MenuRow {
+          glyph: ""
+          text: profileButton.pictured ? root.tr("startMenu.changePicture", "Change picture") : root.tr("startMenu.addPicture", "Add a picture")
+          onTriggered: root.choosePicture()
+        }
+        MenuRow {
+          glyph: ""
+          visible: profileButton.pictured
+          text: root.tr("startMenu.removePicture", "Remove picture")
+          onTriggered: root.removePicture()
+        }
+      }
+    }
+
+    // The footer buttons' labels. Drawn here rather than in the buttons, where
+    // the footer and the card would cut them off, and kept on the screen.
+    ToolTipText {
+      readonly property Item target: filesButton.hovered ? filesButton
+        : omarchyMenuButton.hovered ? omarchyMenuButton
+        : powerButton.hovered && !root.powerOpen ? powerButton
+        : profileButton.hovered && !root.profileOpen ? profileButton
+        : null
+      // Read again when the card moves or resizes, which mapToItem alone would
+      // not notice.
+      readonly property point anchorPoint: target && card.x + card.y + card.width + card.height + panel.width > -1 ? target.mapToItem(panel.contentItem, target.width / 2, 0) : Qt.point(0, 0)
+
+      shown: target !== null
+      text: target === profileButton ? root.tr("startMenu.profile", "Your picture") : target ? target.label : ""
+      x: Math.round(Math.max(Style.gapsOut, Math.min(panel.width - width - Style.gapsOut, anchorPoint.x - width / 2)))
+      y: Math.round(Math.max(Style.gapsOut, anchorPoint.y - height - Style.spacing.sm))
     }
   }
 

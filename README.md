@@ -6,7 +6,7 @@ A Windows-style start menu for Omarchy's floating workspaces, drawn in your Omar
 - **Pinned** apps in a grid. Drag one onto another to swap places, or right-click for _Move to front_. Until you pin something here, it shows the apps you keep in the dock.
 - **Recent** apps you opened from the menu, with how long ago.
 - **All apps**, A to Z. Click a letter to jump to another one.
-- **Footer**: your name, Files, the Omarchy menu, and a power button with Lock, Sleep, Log out, Restart and Shut down.
+- **Footer**: your picture, Files, the Omarchy menu, and a power button with Lock, Sleep, Log out, Restart and Shut down. Click the picture to choose one (the desktop's file chooser opens) or to remove it; without one it shows your initial in the theme's accent colour.
 - **Right-click** any app to open it, pin or unpin it, keep it in the dock, take it off Recent, or uninstall it.
 
 Keyboard: arrows move, `Enter` opens, `Tab` switches between the home view and All apps, `Menu` or `Shift + F10` opens the selected app's menu, `Delete` uninstalls, and `Escape` steps back: it clears the search, leaves All apps, then closes the menu.
@@ -53,6 +53,7 @@ Without the dock's help the menu sits centered above the dock's edge rather than
 ## Where it keeps things
 
 - Pins: `~/.config/omarchy/start-menu.json`
+- Your picture: `~/.face`, the usual place for it on Linux, which login screens read too. Removing it from the menu moves it to the trash.
 - Recent apps: `~/.local/state/omarchy/start-menu/recent.json`
 
 ## Development
