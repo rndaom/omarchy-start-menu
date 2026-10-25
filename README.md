@@ -37,8 +37,10 @@ Handing the dock's button to a plugin needs a dock change that is on its way int
 local function start_menu()
   local workspace = hl.get_active_workspace()
   if workspace then
-    hl.exec_cmd("[[ $(omarchy-hyprland-workspace-layout-current " .. workspace.id .. ") == floating ]]"
-      .. " && omarchy-shell shell toggle rndaom.start-menu \"{\\\"position\\\":\\\"$(omarchy-dock position)\\\"}\"")
+    -- Hyprland reads a command that starts with `[` as window rules, hence
+    -- the `if` around the test.
+    hl.exec_cmd("if [[ $(omarchy-hyprland-workspace-layout-current " .. workspace.id .. ") == floating ]]; then"
+      .. " omarchy-shell shell toggle rndaom.start-menu \"{\\\"position\\\":\\\"$(omarchy-dock position)\\\"}\"; fi")
   end
 end
 o.bind_commands[start_menu] = "omarchy-shell shell toggle rndaom.start-menu"
