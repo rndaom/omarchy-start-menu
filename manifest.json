@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "rndaom.start-menu",
+  "name": "Start menu",
+  "version": "1.0.0",
+  "author": "rndaom",
+  "description": "A Windows-style start menu for the dock's apps button and a tap of Super",
+  "kinds": [
+    "menu"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "menu": "StartMenu.qml"
+  }
+}
