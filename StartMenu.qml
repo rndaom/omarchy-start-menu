@@ -35,8 +35,11 @@ Item {
   readonly property bool searching: filterText !== ""
 
   // The keyboard's place: a section ("pinned", "recent", "all", "results") and
-  // an index in it. The pointer moves it too, so only one thing is lit.
-  property string section: "pinned"
+  // an index in it. The pointer moves it too, so only one thing is lit. Not
+  // named `section`: the app list's letter headers take that name, and when
+  // the list reuses a header Qt hands the new letter to this file's root
+  // instead, so the headers kept old letters.
+  property string selectedSection: "pinned"
   property int index: 0
 
   property var pins: []
@@ -297,7 +300,7 @@ Item {
   // The pointer selects what it is over without scrolling; keys bring the
   // selection into view.
   function select(section, index, keepView) {
-    root.section = section
+    root.selectedSection = section
     root.index = Math.max(0, Math.min(root.countOf(section) - 1, index))
     if (keepView) return
     if (section === "pinned") pinnedGrid.positionViewAtIndex(root.index, GridView.Contain)
@@ -306,28 +309,28 @@ Item {
   }
 
   function isSelected(section, index) {
-    return root.section === section && root.index === index
+    return root.selectedSection === section && root.index === index
   }
 
   // Arrows walk the pinned grid and then the recent apps below it, keeping to
   // the side they came from.
   function step(key) {
     if (root.searching || root.view === "all") {
-      if (key === "up") root.select(root.section, root.index - 1)
-      else if (key === "down") root.select(root.section, root.index + 1)
+      if (key === "up") root.select(root.selectedSection, root.index - 1)
+      else if (key === "down") root.select(root.selectedSection, root.index + 1)
       return
     }
-    var columns = root.section === "pinned" ? root.pinnedColumns : root.recentColumns
-    var next = Model.gridStep(root.index, root.countOf(root.section), columns, key)
-    if (next.leave > 0 && root.section === "pinned" && root.recentEntries.length > 0) {
+    var columns = root.selectedSection === "pinned" ? root.pinnedColumns : root.recentColumns
+    var next = Model.gridStep(root.index, root.countOf(root.selectedSection), columns, key)
+    if (next.leave > 0 && root.selectedSection === "pinned" && root.recentEntries.length > 0) {
       root.select("recent", (root.index % root.pinnedColumns) < root.pinnedColumns / 2 ? 0 : Math.min(1, root.recentEntries.length - 1))
-    } else if (next.leave < 0 && root.section === "recent" && root.pinnedEntries.length > 0) {
+    } else if (next.leave < 0 && root.selectedSection === "recent" && root.pinnedEntries.length > 0) {
       var count = root.pinnedEntries.length
       var lastRow = Math.floor((count - 1) / root.pinnedColumns) * root.pinnedColumns
       var column = root.index % root.recentColumns === 0 ? 0 : root.pinnedColumns / 2
       root.select("pinned", Math.min(count - 1, lastRow + column))
     } else if (next.index >= 0) {
-      root.select(root.section, next.index)
+      root.select(root.selectedSection, next.index)
     }
   }
 
@@ -409,7 +412,7 @@ Item {
 
   // The menu key opens the selected app's menu beside it.
   function openMenuForSelection() {
-    var entry = root.entryAt(root.section, root.index)
+    var entry = root.entryAt(root.selectedSection, root.index)
     if (!entry) return
     var item = root.selectedItem()
     var point = item ? item.mapToItem(panel.contentItem, item.width / 2, item.height / 2) : Qt.point(root.cardPosition.x + root.padding, root.cardPosition.y + root.padding)
@@ -417,9 +420,9 @@ Item {
   }
 
   function selectedItem() {
-    var view = root.section === "pinned" ? pinnedGrid
-      : root.section === "recent" ? recentGrid
-      : root.section === "all" ? allList
+    var view = root.selectedSection === "pinned" ? pinnedGrid
+      : root.selectedSection === "recent" ? recentGrid
+      : root.selectedSection === "all" ? allList
       : resultsList
     return view && view.itemAtIndex ? view.itemAtIndex(root.index) : null
   }
@@ -681,23 +684,23 @@ Item {
             root.step("up")
           } else if (event.key === Qt.Key_Down) {
             root.step("down")
-          } else if (event.key === Qt.Key_PageUp && root.section === "all") {
+          } else if (event.key === Qt.Key_PageUp && root.selectedSection === "all") {
             root.select("all", root.index - 10)
-          } else if (event.key === Qt.Key_PageDown && root.section === "all") {
+          } else if (event.key === Qt.Key_PageDown && root.selectedSection === "all") {
             root.select("all", root.index + 10)
-          } else if (event.key === Qt.Key_Home && root.section === "all" && !root.searching) {
+          } else if (event.key === Qt.Key_Home && root.selectedSection === "all" && !root.searching) {
             root.select("all", 0)
-          } else if (event.key === Qt.Key_End && root.section === "all" && !root.searching) {
+          } else if (event.key === Qt.Key_End && root.selectedSection === "all" && !root.searching) {
             root.select("all", allApps.count - 1)
           } else if (event.key === Qt.Key_Tab && !root.searching) {
             if (root.view === "all") root.home()
             else root.showAll()
           } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-            root.launch(root.entryAt(root.section, root.index))
+            root.launch(root.entryAt(root.selectedSection, root.index))
           } else if (event.key === Qt.Key_Menu || (event.key === Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier))) {
             root.openMenuForSelection()
           } else if (event.key === Qt.Key_Delete) {
-            root.requestUninstall(root.entryAt(root.section, root.index))
+            root.requestUninstall(root.entryAt(root.selectedSection, root.index))
           } else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) > 32 && event.text.charCodeAt(0) !== 127
               && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) {
             root.setFilter(root.filterText + event.text)
@@ -1224,7 +1227,7 @@ Item {
         }
 
         MenuRow {
-          visible: root.section === "recent" && root.recentEntries.some(function(item) { return item.entry === appMenu.entry })
+          visible: root.selectedSection === "recent" && root.recentEntries.some(function(item) { return item.entry === appMenu.entry })
           text: root.tr("startMenu.removeFromRecent", "Remove from Recent")
           onTriggered: {
             root.forgetRecent(appMenu.entry)
