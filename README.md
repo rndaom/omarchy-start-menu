@@ -3,7 +3,7 @@
 A Windows-style start menu for Omarchy's floating workspaces, drawn in your Omarchy theme. It opens from the dock's apps button and from a tap of the Super key, and hangs from the button the way a start menu sits on its taskbar.
 
 - **Search** at the top: just start typing. The best match is first; `Enter` opens it.
-- **Pinned** apps in a grid. Drag one onto another to swap places, or right-click for _Move to front_. Until you pin something here, it shows the apps you keep in the dock.
+- **Pinned** apps in a grid. Drag one onto another to move it into that slot, or right-click for _Move to front_. Until you pin something here, it shows the apps you keep in the dock.
 - **Recent** apps you opened from the menu, with how long ago.
 - **All apps**, A to Z. Click a letter to jump to another one.
 - **Footer**: your picture, Files, the Omarchy menu, and a power button with Lock, Sleep, Log out, Restart and Shut down. Click the picture to choose one (the desktop's file chooser opens) or to remove it; without one it shows your initial in the theme's accent colour.
