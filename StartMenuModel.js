@@ -104,11 +104,28 @@ function ago(at, now) {
   return weeks === 1 ? "Last week" : weeks + " weeks ago"
 }
 
-// The letter an app is filed under in the full list: its first letter, and
-// "#" for anything that starts with a digit or a symbol.
+// The letter an app is filed under in the full list: its first letter without
+// its accent, so É goes with E, and "#" for anything the A to Z jump grid does
+// not offer: digits, symbols and letters of other scripts.
 function letterFor(name) {
-  var first = String(name || "").trim().charAt(0).toUpperCase()
-  return first && first.toLowerCase() !== first ? first : "#"
+  var first = String(name || "").trim().charAt(0)
+  if (first && typeof first.normalize === "function") first = first.normalize("NFD").charAt(0)
+  first = first.toUpperCase()
+  return /^[A-Z]$/.test(first) ? first : "#"
+}
+
+// The order of the full list: by letter, "#" first, then by name within it,
+// so each letter's apps sit together under one header whatever the locale's
+// collation does with accented letters.
+function compareNames(left, right) {
+  var a = String(left || "").toLowerCase(), b = String(right || "").toLowerCase()
+  var leftLetter = letterFor(a), rightLetter = letterFor(b)
+  if (leftLetter !== rightLetter) {
+    if (leftLetter === "#") return -1
+    if (rightLetter === "#") return 1
+    return leftLetter < rightLetter ? -1 : 1
+  }
+  return a.localeCompare(b)
 }
 
 function letters(names) {

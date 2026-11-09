@@ -6,7 +6,7 @@ const vm = require('vm')
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'StartMenuModel.js'), 'utf8').replace(/^\.pragma library\s*$/m, '')
 const model = {}
-vm.runInNewContext(source + '\nObject.assign(model, { uniqueIds, parsePins, serializePins, pin, unpin, movePin, parseRecent, addRecent, forgetRecent, ago, letterFor, letters, alphabet, placement, gridStep })', { model })
+vm.runInNewContext(source + '\nObject.assign(model, { uniqueIds, parsePins, serializePins, pin, unpin, movePin, parseRecent, addRecent, forgetRecent, ago, letterFor, compareNames, letters, alphabet, placement, gridStep })', { model })
 
 let passed = 0
 function test(name, fn) {
@@ -72,6 +72,17 @@ test('apps are filed under their first letter, digits and symbols under #', () =
   assert.strictEqual(model.letterFor(''), '#')
   same(model.letters(['1Password', 'Alacritty', 'akregator', 'Btop']), ['#', 'A', 'B'])
   assert.strictEqual(model.alphabet().length, 27)
+})
+
+test('accented letters file with their base letter and other scripts under #', () => {
+  assert.strictEqual(model.letterFor('Écran'), 'E')
+  assert.strictEqual(model.letterFor('ärzte'), 'A')
+  assert.strictEqual(model.letterFor('Терминал'), '#')
+  assert.strictEqual(model.letterFor('微信'), '#')
+  const names = ['Edge', 'Терминал', 'Écran', 'Eclipse', 'Zed', 'Ärzte', '4K Video', 'Alacritty'].sort(model.compareNames)
+  const headers = names.map(model.letterFor).filter((letter, i, all) => i === 0 || all[i - 1] !== letter)
+  same(headers, ['#', 'A', 'E', 'Z'])
+  assert.ok(headers.every(letter => model.alphabet().includes(letter)))
 })
 
 const screen = { width: 2560, height: 1440, reserved: [0, 30, 0, 0] }

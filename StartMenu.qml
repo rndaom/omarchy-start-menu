@@ -170,12 +170,7 @@ Item {
     root.appsStale = false
     var rows = root.appLibrary ? root.appLibrary.sortedEntries("") : []
     var sorted = rows.map(function(row) { return row.entry })
-    sorted.sort(function(a, b) {
-      var left = root.nameOf(a).toLowerCase(), right = root.nameOf(b).toLowerCase()
-      var leftLetter = Model.letterFor(left), rightLetter = Model.letterFor(right)
-      if ((leftLetter === "#") !== (rightLetter === "#")) return leftLetter === "#" ? -1 : 1
-      return left.localeCompare(right)
-    })
+    sorted.sort(function(a, b) { return Model.compareNames(root.nameOf(a), root.nameOf(b)) })
     allApps.clear()
     for (var i = 0; i < sorted.length; i++) {
       var name = root.nameOf(sorted[i])
