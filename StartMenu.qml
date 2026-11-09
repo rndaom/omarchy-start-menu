@@ -393,6 +393,8 @@ Item {
       root.dockPins = root.dockPins.concat([id])
       Util.execDetached("omarchy-dock pin " + Util.shellQuote(id))
     }
+    // Pins that still follow the dock's follow this change at once.
+    if (!root.pinsSaved) root.pins = root.dockPins.slice()
   }
 
   function forgetRecent(entry) {
