@@ -48,6 +48,8 @@ Item {
   property var recent: []
   property var dockPins: []
   property var results: []
+  // Apps handed to the removal command, until their entry is gone.
+  property var uninstalling: []
   property bool appsStale: true
   property real now: Date.now()
 
@@ -193,6 +195,7 @@ Item {
   Connections {
     target: root.appLibrary
     function onAppsChanged() {
+      if (root.uninstalling.length > 0) root.pruneUninstalled()
       if (!root.opened) {
         root.appsStale = true
         return
@@ -434,10 +437,30 @@ Item {
     root.uninstallEntry = null
     if (!entry || !root.appLibrary) return
     var id = String(entry.id)
-    if (root.isPinned(entry)) root.setPins(Model.unpin(root.pins, id))
-    root.forgetRecent(entry)
+    // Kept pinned and in Recent until the app is really gone: the removal can
+    // ask for a password, and cancelling it leaves the app installed.
+    if (root.uninstalling.indexOf(id) === -1) root.uninstalling = root.uninstalling.concat([id])
     root.dismiss()
     root.appLibrary.remove(id, root.nameOf(entry))
+  }
+
+  // Once an app handed to the removal is no longer installed, it leaves the
+  // pins and Recent.
+  function pruneUninstalled() {
+    var left = []
+    for (var i = 0; i < root.uninstalling.length; i++) {
+      var id = root.uninstalling[i]
+      if (DesktopEntries.byId(id)) {
+        left.push(id)
+        continue
+      }
+      if (root.pinsSaved && root.pins.indexOf(id) >= 0) root.setPins(Model.unpin(root.pins, id))
+      if (root.recent.some(function(item) { return item.id === id })) {
+        root.recent = Model.forgetRecent(root.recent, id)
+        root.saveRecent()
+      }
+    }
+    root.uninstalling = left
   }
 
   function jumpTo(letter) {
