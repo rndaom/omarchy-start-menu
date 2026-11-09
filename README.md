@@ -34,7 +34,28 @@ Handing the dock's button to a plugin needs a dock change that is on its way int
 ```lua
 -- Start menu on a tap of Super, on floating workspaces. Remove once Omarchy
 -- ships `omarchy dock launcher`, which binds the tap itself.
+
+-- Hyprland still runs a release bind when Super comes up first in a quick
+-- chord with an unbound key, so a tap also needs Super to be the last key
+-- pressed before it is let go.
+local last_pressed, tapped = nil, false
+hl.on("input.keyboard.key", function(keycode, _, state)
+  if state == 1 then
+    last_pressed = keycode
+  else
+    tapped = keycode == last_pressed
+  end
+end)
+
 local function start_menu()
+  if not tapped then
+    return
+  end
+  -- Not over a fullscreen window, such as a game or a VM.
+  local window = hl.get_active_window()
+  if window and (window.fullscreen or 0) >= 2 then
+    return
+  end
   local workspace = hl.get_active_workspace()
   if workspace then
     -- Hyprland reads a command that starts with `[` as window rules, hence
