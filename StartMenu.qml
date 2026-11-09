@@ -132,9 +132,24 @@ Item {
 
   // ------------------------------------------------------------- Apps
 
+  // The apps the launcher shows, by desktop id: AppLibrary leaves out the ones
+  // the user or their desktop file hides, so pins and Recent leave them out too.
+  property var visibleIds: ({})
+
+  function refreshVisibleIds() {
+    if (!root.appLibrary) return
+    var rows = root.appLibrary.sortedEntries("")
+    var next = {}
+    for (var i = 0; i < rows.length; i++) next[String(rows[i].entry.id)] = true
+    root.visibleIds = next
+  }
+
+  onAppLibraryChanged: root.refreshVisibleIds()
+
   function entry(id) {
     var found = DesktopEntries.byId(id)
-    return found && !found.noDisplay ? found : null
+    if (!found || found.noDisplay) return null
+    return !root.appLibrary || root.visibleIds[String(found.id)] === true ? found : null
   }
 
   function nameOf(entry) {
@@ -195,6 +210,7 @@ Item {
   Connections {
     target: root.appLibrary
     function onAppsChanged() {
+      root.refreshVisibleIds()
       if (root.uninstalling.length > 0) root.pruneUninstalled()
       if (!root.opened) {
         root.appsStale = true
@@ -596,7 +612,10 @@ Item {
     }
   }
 
-  Component.onCompleted: dockPinsProc.running = true
+  Component.onCompleted: {
+    root.refreshVisibleIds()
+    dockPinsProc.running = true
+  }
 
   // ------------------------------------------------------------- Window
 
